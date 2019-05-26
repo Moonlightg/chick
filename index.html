@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+    <script type="text/javascript" src="jquery-3.2.1.min.js"></script>
+    <link href="css/style.css" rel="stylesheet" media="all">
+    <title>V1.0</title>
+  </head>
+  <body>
+    <div id="app">
+      <div class="chick">
+        <p>{{content}}</p>
+        <div class="chick-img">
+          <img src="images/chick.png">
+        </div>
+        <p class="chick-name">小黄鸡</p>
+        <p>等级：{{chick.level}}级，经验：{{chick.exp}}，升级所需：{{chick.upgradeExp}}</p>
+      </div>
+      <div class="food-box">
+        <ul class="food-list">
+          <li v-for="(food, index) in foods" @click="feedClick(food.name)">
+            <p class="food-name">{{food.name}}</p>
+            <p>数量：{{food.num}}</p>
+            <p>进食时长：{{food.eatTime | SecondToDate}}</p>
+            <p>增加经验：{{food.exp}}</p>
+          </li>
+        </ul>
+      </div>
+      <div class="c-modal" v-if="modalLecel">
+        <div class="c-modal__box">
+          <span class="c-modal__title">升级了</span>
+          <p style="font-size: 20px;">恭喜您升到{{chick.level}}级了！</p>
+          <p><span @click="ok" class="c-modal__btn">确定</span></p>
+        </div>
+      </div>
+    </div>
+    <script>  
+      new Vue({
+        el: '#app',
+        data () {
+          return {
+            // 小鸡信息
+            chick: {
+              exp: 0,         // 经验值
+              upgradeExp: 100,// 升级所需经验
+              level: 1        // 等级
+            },
+            // 食物信息
+            foods: [{
+              id: 1,
+              name: '小麦',    // 食物名称
+              eatTime: 10000,    // 进食时间 (单位毫秒)
+              exp: 100,       // 增加小鸡经验
+              num: 5          // 库存数量
+            },{
+              id: 2,
+              name: '香蕉',
+              eatTime: 100000,
+              exp: 500,
+              num: 5
+            }],
+            eat: false,       // 是否在进食
+            setTime: 300,     // 喂食时长 300s
+            startDate: '',    // 开始时间
+            endDate: '',      // 结束时间
+            content: '',      // 倒计时
+            currFood: {},     // 当前选中的食物
+            modalLecel: false // 升级弹窗
+          }
+        },
+        mounted () {
+          this.init() // 初始化
+        },
+        methods: {
+          // 初始化
+          init () {
+            this.$nextTick(function () {
+              // 页面加载获取当前时间
+              let loadDate = new Date().getTime();
+              // 页面加载读取缓存
+              this.load();
+              // 判断上一次是否进食结束
+              let isEat = this.endDate - loadDate;
+              console.log("endDate:"+this.endDate+"-loadDate:"+loadDate+"-isEat:"+isEat);
+              if (isEat > 0) {
+                this.eat = true;
+                this.countdown (this.endDate, loadDate);
+              } else {
+                this.enddate = '';
+                this.eat = false;
+                this.save();
+                this.content = '主人我好饿哦！';
+                return;
+              }
+            })
+          },
+          // 点击食物进行喂食
+          feedClick: function (val) {
+            // 得到选中的食物
+            this.foods.forEach(obj => {
+              if (obj.name === val) {
+                this.currFood = obj
+              }
+            })
+            console.log(this.currFood);
+            if (this.eat) {
+              console.log("本鸡正在吃饭");
+              return;
+            } else {
+              console.log("本鸡饿了，快给我吃的");
+              let startDate = new Date().getTime();
+              let endDate = startDate + this.currFood.eatTime;
+              this.endDate = endDate;
+              this.save();
+              this.countdown (endDate,startDate);
+            }
+          },
+          // 进食结束
+          endEat () {
+            this.enddate = '';    // 倒计时结束清零结束时间
+            this.eat = false;     // 进食状态设为false
+            // 经验值计算
+            this.settleExp();
+            this.save();          // 存档
+            this.content = '喂食结束';
+          },
+          // 经验结算
+          settleExp () {
+            let exps = this.chick.exp += this.currFood.exp;
+            console.log("exps:"+exps);
+            this.settleLevel (exps);
+          },
+          // 升级计算
+          settleLevel (exps) {
+            // 判断是否需要升级
+            if (exps >= this.chick.upgradeExp) {
+              this.chick.level += 1;
+              this.chick.exp = exps - this.chick.upgradeExp;
+              this.chick.upgradeExp = parseInt(this.chick.upgradeExp * 2);
+              this.modalLecel = true;
+              this.save();
+            }
+          },
+          // 倒计时方法
+          countdown (enddate,startdate) {
+            let self = this;
+            let es = enddate - startdate;
+            if (es > 0) {
+              let timer = setInterval (function() {
+                let nowTime = new Date().getTime();
+                let t = enddate - nowTime;
+                console.log("t:"+t);
+                if (t > 0) {
+                  self.eat = true;
+                  console.log(self.eat);
+                  let day = Math.floor(t/86400000);
+                  let hour=Math.floor((t/3600000)%24);
+                  let min=Math.floor((t/60000)%60);
+                  let sec=Math.floor((t/1000)%60);
+                  hour = hour < 10 ? "0" + hour : hour;
+                  min = min < 10 ? "0" + min : min;
+                  sec = sec < 10 ? "0" + sec : sec;
+                  let format = '';
+                  if (day > 0) {
+                    format = `${day}天${hour}小时${min}分${sec}秒`;
+                  } 
+                  if (day <= 0 && hour > 0 ) {
+                    format = `${hour}小时${min}分${sec}秒`; 
+                  }
+                  if (day <= 0 && hour <= 0) {
+                    format =`${min}分${sec}秒`;
+                  }
+                  self.content = format; // 显示倒计时
+                  self.save();
+                } else {
+                  clearInterval(timer); // 清除定时器
+                  self.endEat();
+                }
+              },1000)
+            }
+          },
+          // 升级弹窗确认按钮，确认后再检测是否可以继续升级
+          ok () {
+            let self = this;
+            self.modalLecel = false;
+            setTimeout (function() {
+              self.settleLevel (self.chick.exp);
+            },1000)
+          },
+          // 存档
+          save (state) {
+            let self = this;
+            let data = {
+              endDate: self.endDate,
+              currFood: self.currFood,
+              chick: self.chick
+              //eat: self.eat
+            };
+            localStorage.setItem('farmDate', JSON.stringify(data))
+          },
+          // 读档
+          load (state) {
+            let self = this;
+            let data = JSON.parse(localStorage.getItem('farmDate'))
+            if (!data) return
+            self.endDate = data.endDate,
+            self.currFood = data.currFood,
+            self.chick = data.chick
+            //self.eat = data.eat
+          }
+        },
+        // 过滤器
+        filters: {
+          // 格式化显示时间 毫秒转：天-小时-分钟-秒
+          SecondToDate (value) {
+            var time = value;
+            if (null != time && "" != time) {
+              if (time > 60 * 1000 && time < 60 * 60 * 1000) {
+                time = parseInt(time / 1000 / 60.0) + "分钟" + parseInt((parseFloat(time / 1000 / 60.0) -
+                parseInt(time / 1000 / 60.0)) * 60) + "秒";
+              } else if (time >= 60 * 60 * 1000 && time < 60 * 60 * 24 * 1000) {
+                time = parseInt(time / 1000 / 3600.0) + "小时" + parseInt((parseFloat(time / 1000 / 3600.0) -
+                parseInt(time / 1000 / 3600.0)) * 60) + "分钟" +
+                parseInt((parseFloat((parseFloat(time / 1000 / 3600.0) - parseInt(time / 1000 / 3600.0)) * 60) -
+                parseInt((parseFloat(time / 1000 / 3600.0) - parseInt(time / 1000 / 3600.0)) * 60)) * 60) + "秒";
+              } else if (time >= 60 * 60 * 24 * 1000) {
+              time = parseInt(time / 1000 / 3600.0/24) + "天" +parseInt((parseFloat(time / 1000 / 3600.0/24)-
+                parseInt(time / 1000 / 3600.0/24))*24) + "小时" + parseInt((parseFloat(time / 1000 / 3600.0) -
+                parseInt(time / 1000 / 3600.0)) * 60) + "分钟" +
+                parseInt((parseFloat((parseFloat(time / 1000 / 3600.0) - parseInt(time / 1000/ 3600.0)) * 60) -
+                parseInt((parseFloat(time / 1000 / 3600.0) - parseInt(time / 1000 / 3600.0)) * 60)) * 60) + "秒";
+              } else {
+                time = Math.round((time % (1000 * 60)) / 1000) + "秒";
+              }
+            }
+            return time;
+          }
+        }
+      })
+    </script>
+  </body>
+</html>
