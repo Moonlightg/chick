@@ -13,6 +13,9 @@
     <div id="app">
       <div class="chick">
         <p>{{content}}</p>
+        <div class="progress" v-if="value != 0 && value < 100">
+          <div class="progress-content" :style="'width:' + value + '%' "></div>
+        </div>
         <div class="chick-img">
           <img src="images/chick.png">
         </div>
@@ -68,7 +71,9 @@
             endDate: '',      // 结束时间
             content: '',      // 倒计时
             currFood: {},     // 当前选中的食物
-            modalLecel: false // 升级弹窗
+            modalLecel: false,// 升级弹窗
+            // 进度条
+            value: 0
           }
         },
         mounted () {
@@ -84,7 +89,6 @@
               this.load();
               // 判断上一次是否进食结束
               let isEat = this.endDate - loadDate;
-              console.log("endDate:"+this.endDate+"-loadDate:"+loadDate+"-isEat:"+isEat);
               if (isEat > 0) {
                 this.eat = true;
                 this.countdown (this.endDate, loadDate);
@@ -114,6 +118,7 @@
               let startDate = new Date().getTime();
               let endDate = startDate + this.currFood.eatTime;
               this.endDate = endDate;
+              this.currFood.num--;  // 扣除食物数量
               this.save();
               this.countdown (endDate,startDate);
             }
@@ -148,11 +153,18 @@
           countdown (enddate,startdate) {
             let self = this;
             let es = enddate - startdate;
+            let delay = Math.ceil(100/self.currFood.eatTime*1000); // 计算每秒走的进度
             if (es > 0) {
               let timer = setInterval (function() {
                 let nowTime = new Date().getTime();
                 let t = enddate - nowTime;
-                console.log("t:"+t);
+                let value = (self.currFood.eatTime - t)/1000 * delay; // 计算进度条
+                if (value <= 100) {
+                  self.value = value
+                } else {
+                  self.value = 100;
+                }
+                console.log("t:"+t+"进度条："+value+"%");
                 if (t > 0) {
                   self.eat = true;
                   console.log(self.eat);
